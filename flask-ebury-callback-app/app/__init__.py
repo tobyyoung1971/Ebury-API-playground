@@ -6,5 +6,6 @@ def create_app():
 
     with app.app_context():
         from . import routes
+        app.register_blueprint(routes.bp)
 
     return app

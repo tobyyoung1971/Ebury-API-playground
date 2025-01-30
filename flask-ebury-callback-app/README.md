@@ -51,11 +51,17 @@ Before running the application, ensure that you configure the necessary settings
 
 To start the Flask application, run:
 ```
-python run.py
+gunicorn -w 4 -b 127.0.0.1:5000 "app:create_app()"
 ```
 
 The application will start listening for callbacks from Ebury's API on the specified port.
 
+To make public so the url can be access externally, use ngrok https://ngrok.com/
+
+```
+pip install ngrok
+ngrok config add-authtoken {token}
+```
 ## Usage
 
 Once the application is running, it will process incoming callbacks as defined in `app/routes.py`. You can extend the functionality by adding more routes or processing logic as needed.
@@ -63,3 +69,5 @@ Once the application is running, it will process incoming callbacks as defined i
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for more details.
+
+## Running
