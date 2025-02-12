@@ -1,4 +1,7 @@
-from flask import Blueprint, request, jsonify, redirect, url_for
+from flask import Blueprint, request, jsonify, redirect, url_for, render_template
+import json
+from .ebury_api import get_ebury_balance
+from .ebury_api import get_webhook_subscriptions
 
 bp = Blueprint('ebury', __name__)
 
@@ -20,3 +23,14 @@ def health_check():
 @bp.route('/', methods=['GET'])
 def root():
     return redirect(url_for('ebury.health_check'))
+    
+    
+@bp.route('/balance', methods=['GET'])
+def balance():
+    balance_info = get_ebury_balance()
+    return render_template('balance.html', balance=balance_info)
+
+@bp.route('/webhooks', methods=['GET'])
+def webhooks():
+    subscriptions = get_webhook_subscriptions()
+    return render_template('webhooks.html', subscriptions=subscriptions)
