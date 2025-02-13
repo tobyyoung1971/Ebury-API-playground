@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Subscription</title>
+</head>
+<body>
+    <h1>Create New Subscription</h1>
+    <form action="{{ url_for('ebury.new_subscription') }}" method="post">
+        <label for="url">URL:</label>
+        <input type="text" id="url" name="url" required><br><br>
+        
+        <label for="secret">Secret:</label>
+        <input type="text" id="secret" name="secret" required><br><br>
+        
+        <label for="types">Subscription Types:</label><br>
+        {% for type in subscription_types %}
+            <input type="checkbox" id="type-{{ type.name }}" name="types" value="{{ type.name }}">
+            <label for="type-{{ type.name }}">{{ type.name }}</label><br>
+        {% endfor %}
+        
+        <br>
+        <button type="submit">Create Subscription</button>
+    </form>
+</body>
+</html>

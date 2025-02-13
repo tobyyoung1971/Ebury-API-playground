@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+</head>
+<body>
+    <h1>Welcome to the Ebury API Playground</h1>
+    <ul>
+        <li><a href="{{ url_for('ebury.webhooks') }}">Webhooks</a></li>
+        <li><a href="{{ url_for('ebury.callbacks') }}">Callbacks</a></li>
+        <li><a href="{{ url_for('ebury.new_subscription') }}">New Subscription</a></li>
+        <li><a href="{{ url_for('ebury.balance') }}">Balance</a></li>
+    </ul>
+</body>
+</html>

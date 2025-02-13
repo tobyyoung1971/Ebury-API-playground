@@ -201,3 +201,70 @@ def disable_webhook_subscription(subscription_id):
         return response.json()
     else:
         response.raise_for_status()
+
+def get_subscription_types():
+    access_token = get_access_token()
+    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + clients[0].get('client_id')
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    
+    query = {
+            "query": """
+            {
+                __type(name: "WebhookType") {
+                    name
+                    enumValues {
+                        name
+                    }
+                }
+                webhookTypes
+            }
+            """
+        }
+    
+    response = requests.post(url, headers=headers, json=query)
+    
+    if response.status_code == 200:
+        response_json = response.json()
+        print("Subscription Types Response:", response_json)  # Log the response
+        return response_json
+    else:
+        response.raise_for_status()
+
+def create_subscription(callback_url, types, secret):
+    access_token = get_access_token()
+    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + clients[0].get('client_id')
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+
+    # Format the types array as a list of enum values
+    formatted_types = "["+ ', '.join([f'{type}' for type in types])+"]"
+    
+    
+    query = {
+        "query": """
+        mutation {
+            createSubscription(input: {subscription: {url: "%s", types: %s, active: true, secret: "%s"}}) {
+                subscription {
+                    id
+                    url
+                    types
+                    active
+                }
+            }
+        }
+        """ % (callback_url, formatted_types, secret)
+    }
+    
+    response = requests.post(url, headers=headers, json=query)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        response.raise_for_status()

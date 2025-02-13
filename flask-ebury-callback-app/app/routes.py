@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, redirect, url_for, render_template
-from .ebury_api import get_ebury_balance, get_webhook_subscriptions, delete_webhook_subscription, disable_webhook_subscription
+from .ebury_api import get_ebury_balance, get_webhook_subscriptions, delete_webhook_subscription, disable_webhook_subscription, get_subscription_types, create_subscription
 from app import socketio
 
 bp = Blueprint('ebury', __name__)
@@ -21,7 +21,8 @@ def health_check():
 
 @bp.route('/', methods=['GET'])
 def root():
-    return redirect(url_for('ebury.health_check'))
+    return render_template('index.html')
+#   return redirect(url_for('ebury.health_check'))
  
 @bp.route('/balance', methods=['GET'])
 def balance():
@@ -46,3 +47,16 @@ def delete_webhook(subscription_id):
 def disable_webhook(subscription_id):
     result = disable_webhook_subscription(subscription_id)
     return jsonify(result)
+
+@bp.route('/subscriptions/new', methods=['GET', 'POST'])
+def new_subscription():
+    if request.method == 'POST':
+        url = request.form['url']
+        secret = request.form['secret']
+        types = request.form.getlist('types')
+        result = create_subscription(url, types, secret)
+        return redirect(url_for('ebury.webhooks'))
+    
+    subscription_types = get_subscription_types()
+    enum_values = subscription_types['data']['__type']['enumValues']
+    return render_template('new_subscription.html', subscription_types=enum_values)
