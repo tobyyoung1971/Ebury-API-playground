@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incoming Callbacks</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            var socket = io();
+            socket.on('new_callback', function(data) {
+                var callbackList = document.getElementById('callback-list');
+                var newItem = document.createElement('li');
+                newItem.textContent = JSON.stringify(data);
+                callbackList.appendChild(newItem);
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Incoming Callbacks</h1>
+    <ul id="callback-list"></ul>
+</body>
+</html>

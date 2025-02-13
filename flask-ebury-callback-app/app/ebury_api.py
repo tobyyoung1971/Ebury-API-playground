@@ -124,11 +124,7 @@ def get_webhook_subscriptions():
     query = {
         "query": """
         {
-            subscriptions(filter: {
-                active: {
-                    equalTo: true
-                }
-            }) {
+            subscriptions {
                 totalCount
                 nodes {
                     id
@@ -140,6 +136,63 @@ def get_webhook_subscriptions():
             }
         }
         """
+    }
+    
+    response = requests.post(url, headers=headers, json=query)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        response.raise_for_status()
+
+def delete_webhook_subscription(subscription_id):
+    access_token = get_access_token()
+    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + clients[0].get('client_id')
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    
+    query = {
+        "query": """
+        mutation {
+            deleteSubscription(input: {id: "%s"}) {
+                subscription {
+                    id
+                }
+            }
+        }
+        """ % subscription_id
+    }
+    
+    response = requests.post(url, headers=headers, json=query)
+    
+    if response.status_code == 200:
+        return {'status': 'success'}
+    else:
+        response.raise_for_status()
+
+def disable_webhook_subscription(subscription_id):
+    access_token = get_access_token()
+    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + clients[0].get('client_id')
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    
+    query = {
+        "query": """
+        mutation {
+            updateSubscription(input: {id: "%s", patch: {active: false}}) {
+                subscription {
+                    id
+                    active
+                }
+            }
+        }
+        """ % subscription_id
     }
     
     response = requests.post(url, headers=headers, json=query)
