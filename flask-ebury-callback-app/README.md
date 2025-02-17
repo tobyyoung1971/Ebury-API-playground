@@ -53,14 +53,17 @@ To start the Flask application, run:
 ```
 gunicorn -w 4 -b 127.0.0.1:5000 "app:create_app()"
 ```
+or if using vscode use Debug tools
 
 The application will start listening for callbacks from Ebury's API on the specified port.
 
 To make public so the url can be access externally, use ngrok https://ngrok.com/
+Sign up for an endpoint and get your token, then install and run 
 
 ```
 pip install ngrok
 ngrok config add-authtoken {token}
+ngrok http 5000
 ```
 ## Usage
 
@@ -69,5 +72,3 @@ Once the application is running, it will process incoming callbacks as defined i
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for more details.
-
-## Running
