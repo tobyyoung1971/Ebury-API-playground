@@ -50,7 +50,7 @@ def login_ebury():
         else:
             raise ValueError("Redirect URL not found in the response headers")
     else:
-        response.raise_for_status()
+        raise ValueError(f"Unexpected response status code: {response.status_code}")
 
 def get_ebury_token(auth_response):
     code = auth_response.get('code')
