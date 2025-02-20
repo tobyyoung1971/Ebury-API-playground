@@ -8,7 +8,13 @@
 <body>
     <h1>Create New Subscription</h1>
     <form action="{{ url_for('ebury.new_subscription') }}" method="post">
-        <label for="url">URL:</label>
+        <label for="client_id">Client ID:</label>
+        <select id="client_id" name="client_id" required>
+            {% for client in clients %}
+                <option value="{{ client.client_id }}">{{ client.client_id }} - {{ client.client_name }}</option>
+            {% endfor %}
+        </select><br><br>
+        <label for="url">Callback URL:</label>
         <input type="text" id="url" name="url" required><br><br>
         
         <label for="secret">Secret:</label>

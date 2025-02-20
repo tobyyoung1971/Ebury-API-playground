@@ -4,6 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Webhook Subscriptions</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left; /* Aligns text to the left */
+            vertical-align: top;
+        }
+    </style>
     <script>
         function deleteSubscription(subscriptionId) {
             fetch(`/webhooks/delete/${subscriptionId}`, {
@@ -38,18 +50,37 @@
 </head>
 <body>
     <h1>Webhook Subscriptions</h1>
-    <ul>
-        {% for subscription in subscriptions.data.subscriptions.nodes %}
-            <li id="subscription-{{ subscription.id }}">
-                <strong>ID:</strong> {{ subscription.id }}<br>
-                <strong>Created At:</strong> {{ subscription.createdAt }}<br>
-                <strong>URL:</strong> {{ subscription.url }}<br>
-                <strong>Status:</strong> <span class="status">{{ 'Active' if subscription.active else 'Inactive' }}</span><br>
-                <strong>Types:</strong> {{ subscription.types | join(', ') }}<br>
-                <button onclick="deleteSubscription('{{ subscription.id }}')">Delete</button>
-                <button onclick="disableSubscription('{{ subscription.id }}')">Disable</button>
-            </li>
-        {% endfor %}
-    </ul>
+    <table>
+        <thead>
+            <tr>
+                <th>Client ID</th>
+                {% for client_id in webhooks.keys() %}
+                    <th>{{ client_id }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Subscriptions</td>
+                {% for client_data in webhooks.values() %}
+                    <td>
+                        <ul>
+                            {% for subscription in client_data.data.subscriptions.nodes %}
+                                <li id="subscription-{{ subscription.id }}">
+                                    <strong>ID:</strong> {{ subscription.id }}<br>
+                                    <strong>Created At:</strong> {{ subscription.createdAt }}<br>
+                                    <strong>URL:</strong> {{ subscription.url }}<br>
+                                    <strong>Status:</strong> <span class="status">{{ 'Active' if subscription.active else 'Inactive' }}</span><br>
+                                    <strong>Types:</strong> {{ subscription.types | join(', ') }}<br>
+                                    <button onclick="deleteSubscription('{{ subscription.id }}')">Delete</button>
+                                    <button onclick="disableSubscription('{{ subscription.id }}')">Disable</button>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                {% endfor %}
+            </tr>
+        </tbody>
+    </table>
 </body>
 </html>

@@ -1,9 +1,46 @@
-from flask import Blueprint, request, jsonify, redirect, url_for, render_template
-from .ebury_api import get_ebury_balance, get_webhook_subscriptions, delete_webhook_subscription, disable_webhook_subscription, get_subscription_types, create_subscription
+from flask import Blueprint, request, jsonify, redirect, url_for, render_template, Response, current_app
+from .ebury_api import get_ebury_balance, get_webhook_subscriptions, delete_webhook_subscription, disable_webhook_subscription, get_subscription_types, create_subscription, get_ebo_login, get_ebury_token, get_clients
 from app import socketio
 
 bp = Blueprint('ebury', __name__)
 
+# Add health check route
+@bp.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'up'}), 200
+
+# Rout for root, home page
+@bp.route('/', methods=['GET'])
+def root():
+    return render_template('index.html')
+#   return redirect(url_for('ebury.health_check'))
+
+# Route to get the Ebury login page
+@bp.route('/ebo_login', methods=['GET'])
+#def ebo_login():
+#    response = get_ebo_login()
+#    return Response(response, mimetype='text/html')
+def ebo_login():
+    client_id = current_app.config['EBURY_AUTH_CLIENT_ID']
+    redirect_uri = current_app.config['EBURY_REDIRECT_URL']
+    auth_url = f"{current_app.config['EBURY_AUTHENTICATION_URL']}authenticate?scope=openid&response_type=code&state=state&redirect_uri={redirect_uri}&client_id={client_id}"
+    return redirect(auth_url)
+
+# OAuth2 callback route
+@bp.route('/auth_callback', methods=['GET'])
+def auth_callback():
+    code = request.args.get('code')
+    if code:
+        access_token = get_ebury_token({'code': code})
+        if access_token:
+            return redirect(url_for('ebury.clients'))
+        else:
+            return jsonify({'login status': 'failed'}), 400
+    else:
+        return jsonify({'login status': 'failed', 'error': 'No code provided'}), 400
+
+    
+# Add a route to receive callbacks from Ebury's API
 @bp.route('/callback', methods=['POST'])
 def callback():
     data = request.json
@@ -11,28 +48,21 @@ def callback():
     # Add your processing logic here
 
     print("Received callback data:", data)
+    # Push data to the 'callbacks' page using SocketIO
     socketio.emit('new_callback', data) 
     return jsonify({'status': 'success', 'data': data}), 200
-
-# Add health check route
-@bp.route('/health', methods=['GET'])
-def health_check():
-    return jsonify({'status': 'up'}), 200
-
-@bp.route('/', methods=['GET'])
-def root():
-    return render_template('index.html')
-#   return redirect(url_for('ebury.health_check'))
  
+ # Add a route to display balances for each client_id the login contact has access to.
 @bp.route('/balance', methods=['GET'])
 def balance():
     balance_info = get_ebury_balance()
-    return render_template('balance.html', balance=balance_info)
+    return render_template('balance.html', balances=balance_info)
 
+# Add a route to display webhooks and subscription types
 @bp.route('/webhooks', methods=['GET'])
 def webhooks():
-    subscriptions = get_webhook_subscriptions()
-    return render_template('webhooks.html', subscriptions=subscriptions)
+    webhooks_data = get_webhook_subscriptions()
+    return render_template('webhooks.html', webhooks=webhooks_data)
 
 @bp.route('/callbacks', methods=['GET'])
 def callbacks():
@@ -51,12 +81,19 @@ def disable_webhook(subscription_id):
 @bp.route('/subscriptions/new', methods=['GET', 'POST'])
 def new_subscription():
     if request.method == 'POST':
+        client_id = request.form['client_id']
         url = request.form['url']
         secret = request.form['secret']
         types = request.form.getlist('types')
-        result = create_subscription(url, types, secret)
+        result = create_subscription(client_id, url, types, secret)
         return redirect(url_for('ebury.webhooks'))
     
     subscription_types = get_subscription_types()
     enum_values = subscription_types['data']['__type']['enumValues']
-    return render_template('new_subscription.html', subscription_types=enum_values)
+    clients_list = get_clients()
+    return render_template('new_subscription.html', subscription_types=enum_values, clients=clients_list)
+
+@bp.route('/clients', methods=['GET'])
+def clients():
+    clients_list = get_clients()
+    return render_template('clients.html', clients=clients_list)

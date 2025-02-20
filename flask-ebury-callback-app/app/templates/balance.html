@@ -3,10 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
+    <title>Balance</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, 'Lucida Console', 'Monaco', monospace;
+        }
+        td {
+            vertical-align: top;
+        }
+    </style>
 </head>
 <body>
-    <h1>Ebury Balance Information</h1>
-    <pre>{{ balance | tojson(indent=2) }}</pre>
+    <h1>Balance Information</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Client ID</th>
+                {% for client_id in balances.keys() %}
+                    <th>{{ client_id }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Balance</td>
+                {% for balance_info in balances.values() %}
+                    <td valign="top">
+                        {% for balance in balance_info %}
+                            <div>{{ balance.amount.currency }}: {{ balance.amount.amount }}</div>
+                        {% endfor %}
+                    </td>
+                {% endfor %}
+            </tr>
+        </tbody>
+    </table>
 </body>
 </html>

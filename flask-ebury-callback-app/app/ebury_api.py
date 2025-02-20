@@ -6,14 +6,31 @@ import time
 import json
 
 access_token = None
+refresh_token = None
 token_expiration = 0
 clients = []
 
+def get_ebo_login():
+    clientid = current_app.config['EBURY_AUTH_CLIENT_ID']
+    url = current_app.config['EBURY_AUTHENTICATION_URL'] + "authenticate?scope=openid&response_type=code&state=state&redirect_uri=" + current_app.config['EBURY_REDIRECT_URL'] + "&client_id=" + clientid 
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+    response = requests.get(url, headers=headers, allow_redirects=True)
+    if response.status_code == 200:
+        return response.text
+    else:
+        response.raise_for_status()
 
 def get_access_token():
-    global access_token, token_expiration
+    global access_token, refresh_token, token_expiration
     if access_token is None or time.time() >= token_expiration:
-        auth_response = login_ebury()
+        if refresh_token:
+            auth_response = refresh_ebury_token(refresh_token)
+        else:
+            auth_response = login_ebury()
         access_token = get_ebury_token(auth_response)
     return access_token
 
@@ -79,6 +96,7 @@ def get_ebury_token(auth_response):
         token_response = response.json()
         global access_token, token_expiration
         access_token = token_response.get('access_token')
+        refresh_token = token_response.get('refresh_token')
         token_expiration = time.time() + token_response.get('expires_in', 3600) - 60  # Refresh 1 minute before expiration
 
         # Extract the clients information from the JSON web token id_token
@@ -94,56 +112,96 @@ def get_ebury_token(auth_response):
     else:
         response.raise_for_status()
 
-def get_ebury_balance():
-    global clients
-    access_token = get_access_token()
-    url = current_app.config['EBURY_API_URL'] + "balances?client_id=" + clients[0].get('client_id')
+def refresh_ebury_token(refresh_token):
+    clientid = current_app.config['EBURY_AUTH_CLIENT_ID']
+    clientsecret = current_app.config['EBURY_AUTH_CLIENT_SECRET']
+    url = current_app.config['EBURY_AUTHENTICATION_URL'] + "token"
+
     headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
+        "Authorization": f"Basic {b64encode(f'{clientid}:{clientsecret}'.encode()).decode()}",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    data = {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token
     }
     
-    response = requests.get(url, headers=headers)
+    response = requests.post(url, headers=headers, data=data)
     
     if response.status_code == 200:
         return response.json()
     else:
         response.raise_for_status()
+
+def get_clients():
+    global clients
+    access_token = get_access_token()
+    if access_token is None:
+        raise ValueError("Access token not found")
+    else:
+        return clients
+
+def get_ebury_balance():
+    global clients
+    access_token = get_access_token()
+    balances = {}
+    
+    for client in clients:
+        client_id = client.get('client_id')
+        url = current_app.config['EBURY_API_URL'] + "balances?client_id=" + client_id
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+        
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            balances[client_id] = response.json()
+        else:
+            response.raise_for_status()
+    
+    return balances
 
 
 def get_webhook_subscriptions():
     access_token = get_access_token()
+    webhooks = {}
     url = current_app.config['EBURY_API_URL'] + "webhooks/graphql"
     global clients
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-        "X-Client-ID": clients[0].get('client_id')
-    }
-
-    query = {
-        "query": """
-        {
-            subscriptions {
-                totalCount
-                nodes {
-                    id
-                    createdAt
-                    url
-                    active
-                    types
+    for client in clients:
+        client_id = client.get('client_id')
+        urlclient_id = url + "?client_id=" + client_id
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "X-Client-ID": client_id
+        }
+        query = {
+            "query": """
+            {
+                subscriptions {
+                    totalCount
+                    nodes {
+                        id
+                        createdAt
+                        url
+                        active
+                        types
+                    }
                 }
             }
+            """
         }
-        """
-    }
-    
-    response = requests.post(url, headers=headers, json=query)
-    
-    if response.status_code == 200:
-        return response.json()
-    else:
-        response.raise_for_status()
+        
+        response = requests.post(urlclient_id, headers=headers, json=query)
+        
+        if response.status_code == 200:
+            webhooks[client_id] = response.json()
+        else:
+            response.raise_for_status()
+
+    return webhooks
 
 def delete_webhook_subscription(subscription_id):
     access_token = get_access_token()
@@ -234,9 +292,9 @@ def get_subscription_types():
     else:
         response.raise_for_status()
 
-def create_subscription(callback_url, types, secret):
+def create_subscription(client_id, callback_url, types, secret):
     access_token = get_access_token()
-    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + clients[0].get('client_id')
+    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + client_id
     
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -268,3 +326,4 @@ def create_subscription(callback_url, types, secret):
         return response.json()
     else:
         response.raise_for_status()
+

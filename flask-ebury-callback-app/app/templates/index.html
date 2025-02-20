@@ -8,6 +8,8 @@
 <body>
     <h1>Welcome to the Ebury API Playground</h1>
     <ul>
+        <li><a href="{{ url_for('ebury.ebo_login') }}">EBO login</a></li>
+        <li><a href="{{ url_for('ebury.clients') }}">Clients</a></li>
         <li><a href="{{ url_for('ebury.webhooks') }}">Webhooks</a></li>
         <li><a href="{{ url_for('ebury.callbacks') }}">Callbacks</a></li>
         <li><a href="{{ url_for('ebury.new_subscription') }}">New Subscription</a></li>
