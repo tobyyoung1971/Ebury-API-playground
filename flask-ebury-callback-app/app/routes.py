@@ -1,5 +1,6 @@
-from flask import Blueprint, request, jsonify, redirect, url_for, render_template, Response, current_app
-from .ebury_api import get_ebury_balance, get_webhook_subscriptions, delete_webhook_subscription, disable_webhook_subscription, get_subscription_types, create_subscription, get_ebo_login, get_ebury_token, get_clients
+from flask import Blueprint, request, jsonify, redirect, url_for, render_template, Response, current_app, make_response
+import requests
+from .ebury_api import get_ebury_balance, get_access_token, get_webhook_subscriptions, delete_webhook_subscription, disable_webhook_subscription, get_subscription_types, create_subscription, get_ebury_token, get_clients
 from app import socketio
 
 bp = Blueprint('ebury', __name__)
@@ -13,13 +14,9 @@ def health_check():
 @bp.route('/', methods=['GET'])
 def root():
     return render_template('index.html')
-#   return redirect(url_for('ebury.health_check'))
 
 # Route to get the Ebury login page
 @bp.route('/ebo_login', methods=['GET'])
-#def ebo_login():
-#    response = get_ebo_login()
-#    return Response(response, mimetype='text/html')
 def ebo_login():
     client_id = current_app.config['EBURY_AUTH_CLIENT_ID']
     redirect_uri = current_app.config['EBURY_REDIRECT_URL']
@@ -64,6 +61,7 @@ def webhooks():
     webhooks_data = get_webhook_subscriptions()
     return render_template('webhooks.html', webhooks=webhooks_data)
 
+# Add a route to display incoming callbacks
 @bp.route('/callbacks', methods=['GET'])
 def callbacks():
     return render_template('callbacks.html')
@@ -78,6 +76,7 @@ def disable_webhook(subscription_id):
     result = disable_webhook_subscription(subscription_id)
     return jsonify(result)
 
+# Add a route to create a new subscription for a webhook
 @bp.route('/subscriptions/new', methods=['GET', 'POST'])
 def new_subscription():
     if request.method == 'POST':
@@ -97,3 +96,29 @@ def new_subscription():
 def clients():
     clients_list = get_clients()
     return render_template('clients.html', clients=clients_list)
+
+# Proxy route to fetch data from Ebury API
+# This current only works for the initial graphiql page
+# I have not worked out how to proxy the requests made on the page yet
+@bp.route('/proxy/ebury_graphql', methods=['GET'])
+def proxy_ebury_graphql():
+    access_token = get_access_token()
+    if not access_token:
+        return jsonify({'error': 'Access token not found'}), 401
+
+    # needs to be updated to pass in client_id
+    client_id = get_clients()[0].get('client_id')
+    url = current_app.config['EBURY_API_URL'] + 'webhooks/'
+
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'X-Client-ID': client_id
+    }
+
+    response = requests.get(url, headers=headers)
+    return Response(response.content, response.status_code, response.headers.items())
+
+# Show the GraphiQL page supported by Ebury's API
+@bp.route('/ebury_graphql', methods=['GET'])
+def ebury_graphql():
+    return render_template('ebury_graphql.html')

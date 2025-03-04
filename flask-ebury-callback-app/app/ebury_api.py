@@ -5,24 +5,12 @@ from base64 import b64encode, urlsafe_b64decode
 import time
 import json
 
+# Note that global variables are not being storing in a flask session, because not expecting
+# to have multiple users logging in at the same time.
 access_token = None
 refresh_token = None
 token_expiration = 0
 clients = []
-
-def get_ebo_login():
-    clientid = current_app.config['EBURY_AUTH_CLIENT_ID']
-    url = current_app.config['EBURY_AUTHENTICATION_URL'] + "authenticate?scope=openid&response_type=code&state=state&redirect_uri=" + current_app.config['EBURY_REDIRECT_URL'] + "&client_id=" + clientid 
-
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-
-    response = requests.get(url, headers=headers, allow_redirects=True)
-    if response.status_code == 200:
-        return response.text
-    else:
-        response.raise_for_status()
 
 def get_access_token():
     global access_token, refresh_token, token_expiration
@@ -30,10 +18,11 @@ def get_access_token():
         if refresh_token:
             auth_response = refresh_ebury_token(refresh_token)
         else:
-            auth_response = login_ebury()
+            auth_response = login_ebury() # could reroute to the ebo_login page
         access_token = get_ebury_token(auth_response)
     return access_token
 
+# by pass the ebo login screen and use the username and password from the config file
 def login_ebury():
     email = current_app.config['EBURY_USERNAME']
     password = current_app.config['EBURY_PASSWORD']
@@ -51,7 +40,6 @@ def login_ebury():
         "client_id": clientid,
         "state": state
     }
-
     response = requests.post(url, headers=headers, data=data, allow_redirects=False)
     
     if response.status_code == 302:
@@ -66,7 +54,7 @@ def login_ebury():
                 raise ValueError("Code not found in the redirect URL")
         else:
             raise ValueError("Redirect URL not found in the response headers")
-    else:
+    else: # if response is 200 then need to say that don't support 2fa on host to host logon type
         raise ValueError(f"Unexpected response status code: {response.status_code}")
 
 def get_ebury_token(auth_response):
@@ -74,13 +62,13 @@ def get_ebury_token(auth_response):
     if not code:
         raise ValueError("Login response does not contain 'code'")
     
-    clientid = current_app.config['EBURY_AUTH_CLIENT_ID']
+    auth_clientid = current_app.config['EBURY_AUTH_CLIENT_ID']
     clientsecret = current_app.config['EBURY_AUTH_CLIENT_SECRET']
     redirecturl = current_app.config['EBURY_REDIRECT_URL']
     url = current_app.config['EBURY_AUTHENTICATION_URL'] + "token"
 
     headers = {
-        "Authorization": f"Basic {b64encode(f'{clientid}:{clientsecret}'.encode()).decode()}",
+        "Authorization": f"Basic {b64encode(f'{auth_clientid}:{clientsecret}'.encode()).decode()}",
         "Content-Type": "application/x-www-form-urlencoded"
     }
     data = {
@@ -94,7 +82,7 @@ def get_ebury_token(auth_response):
     if response.status_code == 200:
         # get the access token and set the expiration time.
         token_response = response.json()
-        global access_token, token_expiration
+        global access_token, token_expiration, refresh_token
         access_token = token_response.get('access_token')
         refresh_token = token_response.get('refresh_token')
         token_expiration = time.time() + token_response.get('expires_in', 3600) - 60  # Refresh 1 minute before expiration
@@ -113,12 +101,12 @@ def get_ebury_token(auth_response):
         response.raise_for_status()
 
 def refresh_ebury_token(refresh_token):
-    clientid = current_app.config['EBURY_AUTH_CLIENT_ID']
+    auth_clientid = current_app.config['EBURY_AUTH_CLIENT_ID']
     clientsecret = current_app.config['EBURY_AUTH_CLIENT_SECRET']
     url = current_app.config['EBURY_AUTHENTICATION_URL'] + "token"
 
     headers = {
-        "Authorization": f"Basic {b64encode(f'{clientid}:{clientsecret}'.encode()).decode()}",
+        "Authorization": f"Basic {b64encode(f'{auth_clientid}:{clientsecret}'.encode()).decode()}",
         "Content-Type": "application/x-www-form-urlencoded"
     }
     data = {
@@ -171,7 +159,7 @@ def get_webhook_subscriptions():
     global clients
     for client in clients:
         client_id = client.get('client_id')
-        urlclient_id = url + "?client_id=" + client_id
+        # urlclient_id = url + "?client_id=" + client_id you don't need if you put client_id in the header
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
@@ -184,6 +172,7 @@ def get_webhook_subscriptions():
                     totalCount
                     nodes {
                         id
+                        clientId
                         createdAt
                         url
                         active
@@ -194,7 +183,7 @@ def get_webhook_subscriptions():
             """
         }
         
-        response = requests.post(urlclient_id, headers=headers, json=query)
+        response = requests.post(url, headers=headers, json=query)
         
         if response.status_code == 200:
             webhooks[client_id] = response.json()
@@ -203,8 +192,10 @@ def get_webhook_subscriptions():
 
     return webhooks
 
+# note that the delete function is currently broken on the api side
 def delete_webhook_subscription(subscription_id):
     access_token = get_access_token()
+    # need to update this and pass in the client_id
     url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + clients[0].get('client_id')
     
     headers = {
@@ -233,6 +224,7 @@ def delete_webhook_subscription(subscription_id):
 
 def disable_webhook_subscription(subscription_id):
     access_token = get_access_token()
+    # need to update this and pass in the client_id
     url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + clients[0].get('client_id')
     
     headers = {
@@ -266,7 +258,7 @@ def get_subscription_types():
     
     headers = {
         "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
     }
     
     query = {

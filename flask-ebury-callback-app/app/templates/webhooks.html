@@ -68,6 +68,7 @@
                             {% for subscription in client_data.data.subscriptions.nodes %}
                                 <li id="subscription-{{ subscription.id }}">
                                     <strong>ID:</strong> {{ subscription.id }}<br>
+                                    <strong>Client ID:</strong> {{ subscription.clientId }}<br>
                                     <strong>Created At:</strong> {{ subscription.createdAt }}<br>
                                     <strong>URL:</strong> {{ subscription.url }}<br>
                                     <strong>Status:</strong> <span class="status">{{ 'Active' if subscription.active else 'Inactive' }}</span><br>

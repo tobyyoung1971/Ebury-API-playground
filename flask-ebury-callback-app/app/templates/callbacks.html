@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Incoming Callbacks</title>
+    <style>
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', (event) => {
@@ -11,7 +20,9 @@
             socket.on('new_callback', function(data) {
                 var callbackList = document.getElementById('callback-list');
                 var newItem = document.createElement('li');
-                newItem.textContent = JSON.stringify(data);
+                var pre = document.createElement('pre');
+                pre.textContent = JSON.stringify(data, null, 4); // Pretty print JSON with 4 spaces
+                newItem.appendChild(pre);
                 callbackList.appendChild(newItem);
             });
         });

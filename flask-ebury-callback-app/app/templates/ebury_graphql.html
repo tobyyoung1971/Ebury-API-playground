@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting to Ebury GraphQL</title>
+</head>
+<body>
+    <script>
+        const url = "/proxy/ebury_graphql";
+
+        fetch(url, {
+            method: 'GET'
+        })
+        .then(response => response.text())
+        .then(data => {
+            const newWindow = window.open();
+            newWindow.document.open();
+            newWindow.document.write(data);
+            newWindow.document.close();
+        })
+        .catch(error => console.error('Error:', error));
+    </script>
+</body>
+</html>
