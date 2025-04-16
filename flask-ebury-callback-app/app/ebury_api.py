@@ -193,10 +193,10 @@ def get_webhook_subscriptions():
     return webhooks
 
 # note that the delete function is currently broken on the api side
-def delete_webhook_subscription(subscription_id):
+def delete_webhook_subscription(client_id, subscription_id):
     access_token = get_access_token()
     # need to update this and pass in the client_id
-    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + clients[0].get('client_id')
+    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + client_id
     
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -222,10 +222,10 @@ def delete_webhook_subscription(subscription_id):
     else:
         response.raise_for_status()
 
-def disable_webhook_subscription(subscription_id):
+def disable_webhook_subscription(client_id, subscription_id):
     access_token = get_access_token()
     # need to update this and pass in the client_id
-    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + clients[0].get('client_id')
+    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + client_id
     
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -236,6 +236,36 @@ def disable_webhook_subscription(subscription_id):
         "query": """
         mutation {
             updateSubscription(input: {id: "%s", patch: {active: false}}) {
+                subscription {
+                    id
+                    active
+                }
+            }
+        }
+        """ % subscription_id
+    }
+    
+    response = requests.post(url, headers=headers, json=query)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        response.raise_for_status()
+
+def enable_webhook_subscription(client_id, subscription_id):
+    access_token = get_access_token()
+    # need to update this and pass in the client_id
+    url = current_app.config['EBURY_API_URL'] + "webhooks/graphql?client_id=" + client_id
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    
+    query = {
+        "query": """
+        mutation {
+            updateSubscription(input: {id: "%s", patch: {active: true}}) {
                 subscription {
                     id
                     active

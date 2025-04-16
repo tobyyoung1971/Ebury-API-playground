@@ -19,11 +19,26 @@
             var socket = io();
             socket.on('new_callback', function(data) {
                 var callbackList = document.getElementById('callback-list');
+
+                // Create a new list item
                 var newItem = document.createElement('li');
+
+                // Add a timestamp
+                var timestamp = new Date().toLocaleString(); // Get the current date and time
+                var timestampElement = document.createElement('p');
+                timestampElement.textContent = `Timestamp: ${timestamp}`;
+                timestampElement.style.fontWeight = 'bold';
+
+                // Add the callback data
                 var pre = document.createElement('pre');
                 pre.textContent = JSON.stringify(data, null, 4); // Pretty print JSON with 4 spaces
+
+                // Append the timestamp and data to the list item
+                newItem.appendChild(timestampElement);
                 newItem.appendChild(pre);
-                callbackList.appendChild(newItem);
+
+                // Add the new item to the top of the list
+                callbackList.insertBefore(newItem, callbackList.firstChild);
             });
         });
     </script>

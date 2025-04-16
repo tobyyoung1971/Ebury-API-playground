@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, redirect, url_for, render_template, Response, current_app, make_response
 import requests
-from .ebury_api import get_ebury_balance, get_access_token, get_webhook_subscriptions, delete_webhook_subscription, disable_webhook_subscription, get_subscription_types, create_subscription, get_ebury_token, get_clients
+from .ebury_api import get_ebury_balance, get_access_token, get_webhook_subscriptions, delete_webhook_subscription, disable_webhook_subscription, enable_webhook_subscription, get_subscription_types, create_subscription, get_ebury_token, get_clients
 from app import socketio
 
 bp = Blueprint('ebury', __name__)
@@ -75,14 +75,20 @@ def webhooks():
 def callbacks():
     return render_template('callbacks.html')
 
-@bp.route('/webhooks/delete/<subscription_id>', methods=['DELETE'])
-def delete_webhook(subscription_id):
-    result = delete_webhook_subscription(subscription_id)
+@bp.route('/webhooks/delete/<client_id>/<subscription_id>', methods=['DELETE'])
+def delete_webhook(client_id, subscription_id):
+    # Use client_id and subscription_id to delete the subscription
+    result = delete_webhook_subscription(client_id, subscription_id)
     return jsonify(result)
 
-@bp.route('/webhooks/disable/<subscription_id>', methods=['PATCH'])
-def disable_webhook(subscription_id):
-    result = disable_webhook_subscription(subscription_id)
+@bp.route('/webhooks/<action>/<client_id>/<subscription_id>', methods=['PATCH'])
+def toggle_webhook(action, client_id, subscription_id):
+    if action == 'enable':
+        result = enable_webhook_subscription(client_id, subscription_id)
+    elif action == 'disable':
+        result = disable_webhook_subscription(client_id, subscription_id)
+    else:
+        return jsonify({'error': 'Invalid action'}), 400
     return jsonify(result)
 
 # Add a route to create a new subscription for a webhook
