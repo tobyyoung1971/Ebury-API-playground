@@ -43,6 +43,15 @@ def callback():
     data = request.json
     # Process the incoming data from Ebury's API
     # Add your processing logic here
+    header_info = {
+        'X_EBURY_CLIENT_ID': request.headers.get('X_EBURY_CLIENT_ID'),
+        'X_EBURY_WEBHOOK': request.headers.get('X_EBURY_WEBHOOK')
+    }
+
+    data = {
+        'headers': header_info,
+        **data  # Merge the original data into the new object
+    }
 
     print("Received callback data:", data)
     # Push data to the 'callbacks' page using SocketIO
