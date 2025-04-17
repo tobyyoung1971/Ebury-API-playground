@@ -349,3 +349,21 @@ def create_subscription(client_id, callback_url, types, secret):
     else:
         response.raise_for_status()
 
+def ping_subscription(client_id, subscription_id):
+    access_token = get_access_token()
+    url = current_app.config['EBURY_API_URL'] + "webhooks/ping/" + subscription_id
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "X-Client-ID": client_id
+    }
+
+    # Fetch the subscription details
+    response = requests.post(url, headers=headers)
+    if response.status_code == 204: # 204 No Content indicates a successful ping
+        return {'status': 'success', 'message': 'Ping successful'}
+    else:
+        return {'status': 'error',
+                'message': f'Ping failed with status code {response.status_code}'
+        }

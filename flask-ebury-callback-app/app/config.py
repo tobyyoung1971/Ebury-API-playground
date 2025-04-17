@@ -16,6 +16,9 @@ class Config:
     # These are the urls for the environment to connect to
     EBURY_AUTHENTICATION_URL = "https://auth-sandbox.ebury.io/"
     EBURY_API_URL = "https://sandbox.ebury.io/"
+ 
+    # The secret used to verify the webhook signature
+    EBURY_WEBHOOK_SECRET = "your webhook secret"
 
     DEBUG = True  # Set to False in production
     TESTING = False  # Set to True for testing environment

@@ -66,6 +66,24 @@
                 alert(`Failed to ${action} subscription`);
             });
         }
+
+        function pingSubscription(clientId, subscriptionId) {
+        fetch(`/webhooks/ping/${clientId}/${subscriptionId}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(`Ping to subscription ${subscriptionId} was successful!`);
+            } else {
+                alert(`Failed to ping subscription ${subscriptionId}: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error during subscription ping:', error);
+            alert(`Failed to ping subscription ${subscriptionId}`);
+        });
+    }
     </script>
 </head>
 <body>
@@ -97,6 +115,7 @@
                                     <button class="toggle-button" onclick="toggleSubscription('{{ subscription.clientId }}', '{{ subscription.id }}', {{ 'true' if subscription.active else 'false' }})">
                                         {{ 'Disable' if subscription.active else 'Enable' }}
                                     </button>
+                                    <button onclick="pingSubscription('{{ subscription.clientId }}', '{{ subscription.id }}')">Ping</button>
                                 </li>
                             {% endfor %}
                         </ul>

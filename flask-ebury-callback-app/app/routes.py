@@ -1,7 +1,9 @@
 from flask import Blueprint, request, jsonify, redirect, url_for, render_template, Response, current_app, make_response
 import requests
-from .ebury_api import get_ebury_balance, get_access_token, get_webhook_subscriptions, delete_webhook_subscription, disable_webhook_subscription, enable_webhook_subscription, get_subscription_types, create_subscription, get_ebury_token, get_clients
+from .ebury_api import get_ebury_balance, get_access_token, get_webhook_subscriptions, ping_subscription, delete_webhook_subscription, disable_webhook_subscription, enable_webhook_subscription, get_subscription_types, create_subscription, get_ebury_token, get_clients
 from app import socketio
+import hmac
+import hashlib
 
 bp = Blueprint('ebury', __name__)
 
@@ -40,23 +42,57 @@ def auth_callback():
 # Add a route to receive callbacks from Ebury's API
 @bp.route('/callback', methods=['POST'])
 def callback():
+    # Extract the JSON payload and signature from the request
     data = request.json
-    # Process the incoming data from Ebury's API
-    # Add your processing logic here
+    received_signature = request.headers.get('X-EBURY-SIGNATURE', '')
+    if received_signature.startswith("sha3-256="):
+        received_hash = received_signature.split("=", 1)[1]
+    else:
+        received_hash = ""
+
+    # if using a proxy to forward to running on a localhost
+    # we need to construct the URL from the headers, because flask
+    # will not give us the correct URL scheme behind a proxy
+    scheme = request.headers.get('X-Forwarded-Proto', 'https')
+    host = request.headers.get('X-Forwarded-Host', request.host)
+    path = request.path
+    constructed_url = f"{scheme}://{host}{path}"
+
+    # Retrieve the secret for HMAC computation (use an empty string if no secret is set)
+    secret = current_app.config.get('EBURY_WEBHOOK_SECRET', '')
+
+    # Construct the payload for HMAC computation
+    raw_body = request.data # Get raw body as bytes
+    payload = constructed_url.encode('utf-8') + raw_body  # Concatenate URL (encoded) and raw body
+
+    # Compute the expected signature
+    computed_hash = hmac.new(
+        key=secret.encode('utf-8'),
+        msg=payload,
+        digestmod=hashlib.sha3_256
+    ).hexdigest()
+
+    # Add verification result to the header_info
     header_info = {
         'X_EBURY_CLIENT_ID': request.headers.get('X_EBURY_CLIENT_ID'),
-        'X_EBURY_WEBHOOK': request.headers.get('X_EBURY_WEBHOOK')
+        'X_EBURY_WEBHOOK': request.headers.get('X_EBURY_WEBHOOK'),
+        'X_EBURY_SIGNATURE': received_signature,
+        'Signature Valid': hmac.compare_digest(received_hash, computed_hash),
     }
 
+    # Merge the header_info into the data object
     data = {
-        'headers': header_info,
+        'header info': header_info,
         **data  # Merge the original data into the new object
     }
 
-    print("Received callback data:", data)
+    # Debug information
+    print("callback headers and data:", data)
+
     # Push data to the 'callbacks' page using SocketIO
-    socketio.emit('new_callback', data) 
-    return jsonify({'status': 'success', 'data': data}), 200
+    socketio.emit('new_callback', data)
+
+    return jsonify({'status': 'success', 'X_EBURY_SIGNATURE': received_signature}), 200
  
  # Add a route to display balances for each client_id the login contact has access to.
 @bp.route('/balance', methods=['GET'])
@@ -111,6 +147,11 @@ def new_subscription():
 def clients():
     clients_list = get_clients()
     return render_template('clients.html', clients=clients_list)
+
+@bp.route('/webhooks/ping/<client_id>/<subscription_id>', methods=['POST'])
+def ping_webhook(client_id, subscription_id):
+    result = ping_subscription(client_id, subscription_id)
+    return jsonify(result), 200 if result['status'] == 'success' else 500
 
 # Proxy route to fetch data from Ebury API
 # This current only works for the initial graphiql page
