@@ -5,6 +5,7 @@ from base64 import b64encode, urlsafe_b64decode
 import time
 import json
 import threading
+import os
 
 # Note that global variables are not being storing in a flask session, because not expecting
 # to have multiple users logging in at the same time.
@@ -13,22 +14,28 @@ refresh_token = None
 token_expiration = 0
 clients = []
 # Global variable to control the token watcher thread
-stop_token_watcher = False
+# token_watcher_started = False
+# stop_token_watcher = False
+
 token_refresh_lock = threading.Lock()
 
 def get_access_token():
     global access_token, refresh_token, token_expiration
-    if access_token is None or time.time() >= token_expiration:
-        with token_refresh_lock:  # Ensure only one thread at a time can refresh the token
-            # Re-check the condition after acquiring the lock
-            if access_token is None or time.time() >= token_expiration:
-                if refresh_token:
-                    print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - Refreshing access token using refresh token...")
-                    access_token = refresh_ebury_token(refresh_token)
-                else:
-                    print("No valid access token found. Logging in...")
-                    auth_response = login_ebury()
-                    access_token = get_ebury_token(auth_response)
+    
+    # Debug print to see which thread is calling this function
+    #print(f"get_access_token called from thread: {threading.current_thread().name}")
+    
+    # Ensure only one thread at a time can refresh the token
+    with token_refresh_lock:  
+        # Check fro refresh
+        if access_token is None or time.time() >= token_expiration:
+            if refresh_token:
+                print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - Refreshing access token using refresh token...")
+                access_token = refresh_ebury_token(refresh_token)
+            else:
+                print("No valid access token found. Logging in...")
+                auth_response = login_ebury()
+                access_token = get_ebury_token(auth_response)
     return access_token
 
 # by pass the ebo login screen and use the username and password from the config file
@@ -147,26 +154,47 @@ def refresh_ebury_token(refresh_token):
         access_token = process_token_response(response.json())
         return access_token
     else:
-        response.raise_for_status()
-
+        print("Failed to refresh token:", response.status_code, response.text)
+        return access_token # just let the token expire and try again
+    
 # This function will run in a separate thread to monitor the token expiration
 # and refresh it when necessary
-def token_watcher():
-    global stop_token_watcher, access_token, refresh_token, token_expiration
+# def token_watcher():
+#     global stop_token_watcher, access_token
 
-    while not stop_token_watcher:
-        access_token = get_access_token()
-        # Sleep for a short interval before checking again
-        time.sleep(30)  # Check every 30 seconds
+#     while not stop_token_watcher:
+#         access_token = get_access_token()
+#         # Sleep for a short interval before checking again
+#         time.sleep(30)  # Check every 30 seconds
 
 # Function to start the token watcher thread
-def start_token_watcher(app):
+# def start_token_watcher(app):
+#     global token_watcher_started
+
+    # Debug log to check the environment variable
+    # print(f"FLASK_RUN_FROM_CLI: {os.environ.get('FLASK_RUN_FROM_CLI')}")
+
+    # Prevent multiple threads in development mode with Flask's reloader
+    # if app.debug and os.environ.get('FLASK_RUN_FROM_CLI') != 'true':
+    #     print("Not starting token watcher in reloader process.")
+    #     return
+    
+    # Check if running in Gunicorn
+    # if "gunicorn" in os.environ.get("SERVER_SOFTWARE", ""):
+    #     print("Running in Gunicorn. Skipping token watcher in worker processes.")
+    #     return
+
+    if token_watcher_started:
+        print("Token watcher thread is already running. Skipping...")
+        return
+    
     def token_watcher_with_context():
         with app.app_context():
             token_watcher()
 
     watcher_thread = threading.Thread(target=token_watcher_with_context, daemon=True)
     watcher_thread.start()
+    token_watcher_started = True
     print("Token watcher thread started.")
 
 # Function to get a list of clients
